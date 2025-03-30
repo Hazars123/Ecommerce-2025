@@ -17,7 +17,7 @@ stream: false // On veut une réponse complète
 headers: { "Content-Type": "application/json" }
 });
 
-3
+
 if (!data || !data.response) throw new Error("Réponse invalide d'Ollama");
 const responseText = data.response;
 console.log(`Réponse Ollama: ${responseText}`);
