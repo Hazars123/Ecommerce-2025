@@ -12,8 +12,8 @@ let transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-      user: "hazarsayar42@gmail.com",
-      pass: "fejo zguo tcdz rvjt ",
+      user: "youremail@gmail.com",
+      pass: "your password",
    },tls:{
     rejectUnauthorized:false 
     }
@@ -77,66 +77,99 @@ router.get('/status/edit/', async (req, res) => {
     return res.status(404).send({ success: false, message: err })
     }
     })
-    // se connecter
-    router.post('/login', async (req, res) => {
-        try {
-        let { email, password } = req.body
+    // Importation du module router pour gérer les routes
+router.post('/login', async (req, res) => {
+    try {
+        // Récupération des données envoyées dans la requête (email et mot de passe)
+        let { email, password } = req.body;
+
+        // Vérification si les champs sont vides
         if (!email || !password) {
-        return res.status(404).send({ success: false, message: "All fields are required" })}
-    let user = await User.findOne({ email})
-    if (!user) {
-    return res.status(404).send({ success: false, message: "Account doesn't exists" })
-    } else {
-    let isCorrectPassword = await bcrypt.compare(password, user.password)
-    if (isCorrectPassword) {
-    delete user._doc.password
-    if (!user.isActive) return res.status(200).send({ success:false, message: 'Your account is inactive, Please contact your administrator' })
-        const token = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
-    return res.status(200).send({ success: true, user, token,refreshToken })
-    } else {
-    return res.status(404).send({ success: false, message:
-    "Please verify youv r credentials" })
-    }}
+            return res.status(404).send({ success: false, message: "All fields are required" });
+        }
+
+        // Recherche de l'utilisateur dans la base de données via l'email
+        let user = await User.findOne({ email });
+
+        // Vérification si l'utilisateur existe
+        if (!user) {
+            return res.status(404).send({ success: false, message: "Account doesn't exist" });
+        } else {
+            // Vérification du mot de passe avec bcrypt
+            let isCorrectPassword = await bcrypt.compare(password, user.password);
+
+            if (isCorrectPassword) {
+                // Suppression du mot de passe du document utilisateur avant de l'envoyer dans la réponse
+                delete user._doc.password;
+
+                // Vérification si le compte de l'utilisateur est actif
+                if (!user.isActive) {
+                    return res.status(200).send({ success: false, message: 'Your account is inactive, Please contact your administrator' });
+                }
+
+                // Génération des tokens (accessToken et refreshToken)
+                const token = generateAccessToken(user);
+                const refreshToken = generateRefreshToken(user);
+
+                // Envoi de la réponse avec les tokens et les informations de l'utilisateur
+                return res.status(200).send({ success: true, user, token, refreshToken });
+            } else {
+                // Si le mot de passe est incorrect
+                return res.status(404).send({ success: false, message: "Please verify your credentials" });
+            }
+        }
     } catch (err) {
-    return res.status(404).send({ success: false, message: err.message
-    })
+        // Gestion des erreurs
+        return res.status(404).send({ success: false, message: err.message });
     }
-    });
-    //Access Token
-   const generateAccessToken=(user) =>{
-    return jwt.sign ({ iduser: user._id, role: user.role }, process.env.SECRET, {
-    expiresIn: '60s'})
-    }
-    // Refresh
-function generateRefreshToken(user) {
-    return jwt.sign ({ iduser: user._id, role: user.role },
-    process.env.REFRESH_TOKEN_SECRET, { expiresIn: '1y'})
-    }
-    //Refresh Route
-    router.post('/refreshToken', async (req, res, )=> {
-    console.log(req.body.refreshToken)
-    const refreshtoken = req.body.refreshToken;
-if (!refreshtoken) {
-return res.status(404).send({success: false, message: 'Token Not Found' });
-}
-else {
-jwt.verify(refreshtoken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-if (err) { console.log(err)
-return res.status(406).send({ success: false,message: 'Unauthorized' });
-}
-else {
-const token = generateAccessToken(user);
-const refreshToken = generateRefreshToken(user);
-console.log("token-------",token);
-res.status(200).send({success: true,
-token,
-refreshToken
-})
-}
 });
+
+// Fonction pour générer un token d'accès JWT
+const generateAccessToken = (user) => {
+    return jwt.sign({ iduser: user._id, role: user.role }, process.env.SECRET, {
+        expiresIn: '60s' // Expiration du token après 60 secondes
+    });
 }
 
+// Fonction pour générer un token de rafraîchissement JWT
+function generateRefreshToken(user) {
+    return jwt.sign({ iduser: user._id, role: user.role },
+        process.env.REFRESH_TOKEN_SECRET, { expiresIn: '1y' }); // Expiration du token après 1 an
+}
+
+// Route pour rafraîchir le token d'accès
+router.post('/refreshToken', async (req, res) => {
+    console.log(req.body.refreshToken); // Affichage du token dans la console (pour le debug)
+
+    // Récupération du token de rafraîchissement depuis la requête
+    const refreshtoken = req.body.refreshToken;
+
+    // Vérification si le token est présent
+    if (!refreshtoken) {
+        return res.status(404).send({ success: false, message: 'Token Not Found' });
+    } else {
+        // Vérification de la validité du token avec jwt
+        jwt.verify(refreshtoken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+            if (err) {
+                console.log(err);
+                return res.status(406).send({ success: false, message: 'Unauthorized' });
+            } else {
+                // Génération d'un nouveau token d'accès et d'un nouveau token de rafraîchissement
+                const token = generateAccessToken(user);
+                const refreshToken = generateRefreshToken(user);
+
+                console.log("token-------", token); // Affichage du nouveau token
+
+                // Envoi des nouveaux tokens en réponse
+                res.status(200).send({
+                    success: true,
+                    token,
+                    refreshToken
+                });
+            }
+        });
+    }
 });
+
     module.exports = router;
 
